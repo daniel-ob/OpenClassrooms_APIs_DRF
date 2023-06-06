@@ -39,6 +39,15 @@ class TestCategory(ShopAPITestCase):
 
 
 class TestProduct(ShopAPITestCase):
+    def get_product_json(self, product):
+        return {
+            "id": product.id,
+            "date_created": self.format_datetime(product.date_created),
+            "date_updated": self.format_datetime(product.date_updated),
+            "name": product.name,
+            "category": product.category.id,
+        }
+
     def test_list(self):
         category = Category.objects.create(name="Personal Care", active=True)
         active_product = Product.objects.create(
@@ -49,36 +58,9 @@ class TestProduct(ShopAPITestCase):
         )  # inactive product must not be shown on list
 
         response = self.client.get(reverse("product-list"))
+
         self.assertEqual(response.status_code, 200)
-
-        expected = [
-            {
-                "id": active_product.id,
-                "date_created": self.format_datetime(active_product.date_created),
-                "date_updated": self.format_datetime(active_product.date_updated),
-                "name": active_product.name,
-                "category": category.id,
-            }
-        ]
-        self.assertEqual(response.json(), expected)
-
-    def test_detail(self):
-        category = Category.objects.create(name="Personal Care", active=True)
-        product = Product.objects.create(
-            name="Toothbrush", active=True, category=category
-        )
-
-        response = self.client.get(reverse("product-detail", args=[product.id]))
-        self.assertEqual(response.status_code, 200)
-
-        expected = {
-            "id": product.id,
-            "date_created": self.format_datetime(product.date_created),
-            "date_updated": self.format_datetime(product.date_updated),
-            "name": product.name,
-            "category": category.id,
-        }
-        self.assertEqual(response.json(), expected)
+        self.assertEqual(response.json(), [self.get_product_json(active_product)])
 
     def test_list_filter_by_category(self):
         category = Category.objects.create(name="Personal Care", active=True)
@@ -94,18 +76,20 @@ class TestProduct(ShopAPITestCase):
         response = self.client.get(
             reverse("product-list"), data={"category_id": category.id}
         )
-        self.assertEqual(response.status_code, 200)
 
-        expected = [
-            {
-                "id": product.id,
-                "date_created": self.format_datetime(product.date_created),
-                "date_updated": self.format_datetime(product.date_updated),
-                "name": product.name,
-                "category": category.id,
-            }
-        ]
-        self.assertEqual(response.json(), expected)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [self.get_product_json(product)])
+
+    def test_detail(self):
+        category = Category.objects.create(name="Personal Care", active=True)
+        product = Product.objects.create(
+            name="Toothbrush", active=True, category=category
+        )
+
+        response = self.client.get(reverse("product-detail", args=[product.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), self.get_product_json(product))
 
     def test_create_not_allowed(self):
         category = Category.objects.create(name="Personal Care", active=True)
