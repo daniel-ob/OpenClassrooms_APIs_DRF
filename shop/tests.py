@@ -36,12 +36,19 @@ class ShopAPITestCase(APITestCase):
             {
                 'id': product.pk,
                 'name': product.name,
-                'date_created': self.format_datetime(product.date_created),
-                'date_updated': self.format_datetime(product.date_updated),
                 'category': product.category_id,
-                'articles': self.get_article_list_data(product.articles.filter(active=True))
             } for product in products
         ]
+
+    def get_product_detail_data(self, product):
+        return {
+            'id': product.pk,
+            'name': product.name,
+            'date_created': self.format_datetime(product.date_created),
+            'date_updated': self.format_datetime(product.date_updated),
+            'category': product.category_id,
+            'articles': self.get_article_list_data(product.articles.filter(active=True))
+        }
 
     def get_category_list_data(self, categories):
         return [
@@ -72,21 +79,26 @@ class TestCategory(ShopAPITestCase):
 
 class TestProduct(ShopAPITestCase):
 
-    url = reverse_lazy('product-list')
+    url_list = reverse_lazy('product-list')
 
     def test_list(self):
-        response = self.client.get(self.url)
+        response = self.client.get(self.url_list)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.get_product_list_data([self.product, self.product_2]), response.json()['results'])
 
     def test_list_filter(self):
-        response = self.client.get(self.url + '?category_id=%i' % self.category.pk)
+        response = self.client.get(self.url_list + '?category_id=%i' % self.category.pk)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.get_product_list_data([self.product]), response.json()['results'])
 
+    def test_detail(self):
+        response = self.client.get(reverse('product-detail', kwargs={'pk': self.product.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.get_product_detail_data(self.product), response.json())
+
     def test_create(self):
         product_count = Product.objects.count()
-        response = self.client.post(self.url, data={'name': 'Nouvelle catégorie'})
+        response = self.client.post(self.url_list, data={'name': 'Nouvelle catégorie'})
         self.assertEqual(response.status_code, 405)
         self.assertEqual(Product.objects.count(), product_count)
 
