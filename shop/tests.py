@@ -17,6 +17,10 @@ class ShopAPITestCase(APITestCase):
         cls.category_2 = Category.objects.create(name='Légumes', active=True)
         cls.product_2 = cls.category_2.products.create(name='Tomate', active=True)
 
+        cls.article = cls.product.articles.create(name='article 1', active=True, price=5.40)
+        cls.product.articles.create(name='article 2', active=False, price=5.40)
+
+
     def format_datetime(self, value):
         return value.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -68,6 +72,13 @@ class TestCategory(ShopAPITestCase):
         self.assertEqual(response.status_code, 405)
         self.assertEqual(Category.objects.count(), category_count)
 
+    def test_disable(self):
+        response = self.client.post(reverse('category-disable', kwargs={'pk': self.category.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.category.refresh_from_db()
+        self.assertFalse(self.category.active)
+        self.assertEqual(self.category.products.filter(active=True).count(), 0)
+
 
 class TestProduct(ShopAPITestCase):
 
@@ -93,3 +104,10 @@ class TestProduct(ShopAPITestCase):
         response = self.client.delete(reverse('product-detail', kwargs={'pk': self.product.pk}))
         self.assertEqual(response.status_code, 405)
         self.product.refresh_from_db()
+
+    def test_disable(self):
+        response = self.client.post(reverse('product-disable', kwargs={'pk': self.product.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.product.refresh_from_db()
+        self.assertFalse(self.product.active)
+        self.assertEqual(self.product.articles.filter(active=True).count(), 0)

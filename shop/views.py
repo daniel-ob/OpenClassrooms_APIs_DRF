@@ -17,7 +17,14 @@ class MultipleSerializerMixin:
         return super().get_serializer_class()
 
 
-class CategoryViewset(MultipleSerializerMixin, ReadOnlyModelViewSet):
+class DisableMixin:
+    @action(detail=True, methods=['post'])
+    def disable(self, request, pk):
+        self.get_object().disable()
+        return Response()
+
+
+class CategoryViewset(MultipleSerializerMixin, DisableMixin, ReadOnlyModelViewSet):
 
     serializer_class = CategoryListSerializer
     detail_serializer_class = CategoryDetailSerializer
@@ -25,12 +32,8 @@ class CategoryViewset(MultipleSerializerMixin, ReadOnlyModelViewSet):
     def get_queryset(self):
         return Category.objects.filter(active=True)
 
-    @action(detail=True, methods=['post'])
-    def disable(self, request, pk):
-        self.get_object().disable()
-        return Response()
 
-class ProductViewset(MultipleSerializerMixin, ReadOnlyModelViewSet):
+class ProductViewset(MultipleSerializerMixin, DisableMixin, ReadOnlyModelViewSet):
 
     serializer_class = ProductListSerializer
     detail_serializer_class = ProductDetailSerializer
