@@ -1,7 +1,8 @@
 from django.urls import reverse_lazy, reverse
+from rest_framework import status
 from rest_framework.test import APITestCase
 
-from shop.models import Category, Product
+from shop.models import Category, Product, Article
 
 
 class ShopAPITestCase(APITestCase):
@@ -94,3 +95,37 @@ class TestProduct(ShopAPITestCase):
         response = self.client.delete(reverse('product-detail', kwargs={'pk': self.product.pk}))
         self.assertEqual(response.status_code, 405)
         self.product.refresh_from_db()
+
+
+class TestArticleAdmin(ShopAPITestCase):
+
+    url = reverse_lazy('admin-article-list')
+
+    def test_create_ok(self):
+        response = self.client.post(self.url, data={
+            'name': "new article",
+            'price': 1.01,  # higher than 1
+            'product': self.product.id,  # active product
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Article.objects.count(), 1)
+        self.assertEqual(Article.objects.get().name, 'new article')
+
+    def test_create_price_validation(self):
+        response = self.client.post(self.url, data={
+            'name': "new article",
+            'price': 0,
+            'product': self.product.id,  # active product
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Article.objects.count(), 0)
+
+    def test_create_product_validation(self):
+        inactive_product = self.category.products.create(name='Inactive', active=False)
+        response = self.client.post(self.url, data={
+            'name': "new article",
+            'price': 1.01,  # price higher than 1
+            'product': inactive_product.id,
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Article.objects.count(), 0)

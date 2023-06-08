@@ -9,6 +9,16 @@ class ArticleSerializer(serializers.ModelSerializer):
         model = Article
         fields = ['id', 'date_created', 'date_updated', 'name', 'price', 'product']
 
+    def validate_price(self, value):
+        if value <= 1:
+            raise serializers.ValidationError('Price must be greater than 1€')
+        return value
+
+    def validate_product(self, value):
+        if not value.active:
+            raise serializers.ValidationError('Related product must be active')
+        return value
+
 
 class ProductListSerializer(serializers.ModelSerializer):
 

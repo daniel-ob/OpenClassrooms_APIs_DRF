@@ -56,6 +56,12 @@ class ProductViewset(MultipleSerializerMixin, ReadOnlyModelViewSet):
         return Response()
 
 
+class AdminArticleViewset(ModelViewSet):
+
+    serializer_class = ArticleSerializer
+    queryset = Article.objects.all()
+
+
 class ArticleViewset(ReadOnlyModelViewSet):
 
     serializer_class = ArticleSerializer
