@@ -1,6 +1,8 @@
 from unittest import mock
 
+from django.contrib.auth.models import User
 from django.urls import reverse_lazy, reverse
+from rest_framework import status
 from rest_framework.test import APITestCase
 
 from shop.models import Category, Product
@@ -19,6 +21,13 @@ class ShopAPITestCase(APITestCase):
 
         cls.category_2 = Category.objects.create(name='Légumes', active=True)
         cls.product_2 = cls.category_2.products.create(name='Tomate', active=True)
+
+        cls.admin = User.objects.create(
+            username="admin", is_staff=True, is_superuser=True
+        )
+        cls.contractor = User.objects.create(
+            username="contractor", is_staff=True, is_superuser=False
+        )
 
     def format_datetime(self, value):
         return value.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
@@ -100,3 +109,42 @@ class TestProduct(ShopAPITestCase):
         response = self.client.delete(reverse('product-detail', kwargs={'pk': self.product.pk}))
         self.assertEqual(response.status_code, 405)
         self.product.refresh_from_db()
+
+
+class TestAdminCategory(ShopAPITestCase):
+    url = reverse_lazy("admin-category-list")
+
+    def test_admin_can_create(self):
+        initial_categories_count = Category.objects.count()
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.post(
+            self.url,
+            data={"name": "New category", "description": "New category description"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Category.objects.count(), initial_categories_count + 1)
+
+    def test_contractor_cannot_create(self):
+        initial_categories_count = Category.objects.count()
+
+        self.client.force_authenticate(self.contractor)
+        response = self.client.post(
+            self.url,
+            data={"name": "New category", "description": "New category description"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Category.objects.count(), initial_categories_count)
+
+    def test_contractor_can_update(self):
+        self.client.force_authenticate(self.contractor)
+        response = self.client.put(
+            reverse("admin-category-detail", kwargs={"pk": self.category.id}),
+            data={"name": "New category", "description": "New category description"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.category.refresh_from_db()
+        self.assertEqual(self.category.name, "New category")
